@@ -1,4 +1,5 @@
 using System.Reflection;
+using CSharpManager.Ini;
 using CSharpModBase;
 using CSharpModBase.Input;
 using CSharpModBase.Utils;
@@ -6,14 +7,14 @@ using Mono.Cecil;
 
 namespace CSharpManager;
 
-public class CSharpModManager
+public sealed class CSharpModManager
 {
     private Thread? _loopThread;
     private static string? LoadingModName { get; set; }
 
-    public List<ICSharpMod> LoadedMods { get; } = [];
-    public InputManager InputManager { get; } = new();
-    public bool Develop { get; set; }
+    private List<ICSharpMod> LoadedMods { get; } = [];
+    private InputManager InputManager { get; } = new();
+    private bool IsDevelopMode { get; }
 
     static CSharpModManager()
     {
@@ -28,9 +29,9 @@ public class CSharpModManager
     {
         InputUtils.InitInputManager(InputManager);
         // load config from ini
-        Ini iniFile = new(Path.Combine(Common.LoaderDir, "b1cs.ini"));
-        Develop = iniFile.GetValue("Develop", "Settings", "1").Trim() == "1";
-        Log.Debug($"Develop: {Develop}");
+        IniReader iniReader = new(Path.Combine(CommonDirs.LoaderDir, "b1cs.ini"));
+        IsDevelopMode = iniReader.GetValue("Develop", "Settings", "1") == "1";
+        Log.Debug($"Develop: {IsDevelopMode}");
     }
 
     private static Assembly? TryLoadDll(string path)
@@ -53,9 +54,9 @@ public class CSharpModManager
             }
 
             var dllName = $"{new AssemblyName(args.Name).Name}.dll";
-            return TryLoadDll(Path.Combine(Common.ModDir, LoadingModName, dllName)) ??
-                   TryLoadDll(Path.Combine(Common.ModDir, "Common", dllName)) ??
-                   TryLoadDll(Path.Combine(Common.LoaderDir, dllName));
+            return TryLoadDll(Path.Combine(CommonDirs.ModDir, LoadingModName, dllName)) ??
+                   TryLoadDll(Path.Combine(CommonDirs.ModDir, "Common", dllName)) ??
+                   TryLoadDll(Path.Combine(CommonDirs.LoaderDir, dllName));
         }
         catch (Exception e)
         {
@@ -81,13 +82,13 @@ public class CSharpModManager
     public void LoadMods()
     {
         LoadedMods.Clear();
-        if (!Directory.Exists(Common.ModDir))
+        if (!Directory.Exists(CommonDirs.ModDir))
         {
-            Log.Error($"Mod dir {Common.ModDir} not exists");
+            Log.Error($"Mod dir {CommonDirs.ModDir} not exists");
             return;
         }
 
-        string[] dirs = Directory.GetDirectories(Common.ModDir);
+        string[] dirs = Directory.GetDirectories(CommonDirs.ModDir);
         var ICSharpModType = typeof(ICSharpMod);
         foreach (var dir in dirs)
         {
@@ -102,7 +103,7 @@ public class CSharpModManager
             {
                 Log.Debug($"======== Loading {dllPath} ========");
                 Assembly assembly;
-                if (Develop)
+                if (IsDevelopMode)
                 {
                     using var assemblyDef = AssemblyDefinition.ReadAssembly(dllPath);
                     assemblyDef.Name.Name += DateTime.Now.ToString("_yyyyMMdd_HHmmssffff");
