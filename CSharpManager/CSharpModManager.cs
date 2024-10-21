@@ -2,18 +2,21 @@ using System.Reflection;
 using CSharpModBase;
 using CSharpModBase.Input;
 using Mono.Cecil;
+using NativeSharp;
 using static CSharpModBase.Common;
 
 namespace CSharpManager;
 
 public class CSharpModManager
 {
+    private static readonly string dumpedDllFolder = Path.Combine(LoaderDir, "GameDll");
     private Thread? _loopThread;
     private static string? LoadingModName { get; set; }
 
     public List<ICSharpMod> LoadedMods { get; } = [];
     public InputManager InputManager { get; } = new();
-    public bool Develop { get; set; }
+    private bool Develop { get; }
+    private bool IsDumpDll { get; }
 
     static CSharpModManager()
     {
@@ -31,6 +34,25 @@ public class CSharpModManager
         Ini iniFile = new(Path.Combine(LoaderDir, "b1cs.ini"));
         Develop = iniFile.GetValue("Develop", "Settings", "1").Trim() == "1";
         Log.Debug($"Develop: {Develop}");
+
+        IsDumpDll = iniFile.GetValue("Dump", "Settings", "0").Trim() == "1";
+        if (IsDumpDll)
+        {
+            Task.Run(DumpDlls);
+        }
+    }
+
+    private static void DumpDlls()
+    {
+        if (!Directory.Exists(dumpedDllFolder))
+        {
+            Directory.CreateDirectory(dumpedDllFolder);
+            Log.Debug("Creating dump folder");
+        }
+
+        var processId = NativeProcess.GetProcessIdsByName("b1-Win64-Shipping.exe").Single();
+        var dumper = new Dumper.Dumper(NativeProcess.Open(processId, ProcessAccess.MemoryRead | ProcessAccess.QueryInformation));
+        dumper.DumpProcess(dumpedDllFolder);
     }
 
     private static Assembly? TryLoadDll(string path)
