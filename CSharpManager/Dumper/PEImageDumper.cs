@@ -1,5 +1,4 @@
 using dnlib.PE;
-using NativeSharp;
 
 namespace CSharpManager.Dumper;
 

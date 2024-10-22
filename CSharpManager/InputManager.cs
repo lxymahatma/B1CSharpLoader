@@ -1,7 +1,5 @@
 using System.Runtime.InteropServices;
 using System.Text;
-using CSharpModBase;
-using CSharpModBase.Input;
 
 namespace CSharpManager;
 

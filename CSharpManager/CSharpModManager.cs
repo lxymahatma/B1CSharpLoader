@@ -1,8 +1,6 @@
 using System.Reflection;
-using CSharpModBase;
-using CSharpModBase.Input;
+using CSharpManager.Dumper;
 using Mono.Cecil;
-using NativeSharp;
 using static CSharpModBase.Common;
 
 namespace CSharpManager;
@@ -51,7 +49,7 @@ public class CSharpModManager
         }
 
         var processId = NativeProcess.GetProcessIdsByName("b1-Win64-Shipping.exe").Single();
-        var dumper = new Dumper.Dumper(NativeProcess.Open(processId, ProcessAccess.MemoryRead | ProcessAccess.QueryInformation));
+        var dumper = new DotNetDumper(NativeProcess.Open(processId, ProcessAccess.MemoryRead | ProcessAccess.QueryInformation));
         dumper.DumpProcess(DumpedDllFolder);
     }
 

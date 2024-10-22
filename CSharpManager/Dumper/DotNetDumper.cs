@@ -2,13 +2,10 @@ using System.Collections.Concurrent;
 using System.Runtime.ExceptionServices;
 using dnlib.DotNet;
 using dnlib.PE;
-using NativeSharp;
-using static CSharpManager.Dumper.ExcludeAssemblyHelper;
-using static CSharpManager.Dumper.PEImageDumper;
 
 namespace CSharpManager.Dumper;
 
-public sealed unsafe class Dumper(NativeProcess process)
+public sealed unsafe class DotNetDumper(NativeProcess process)
 {
     private static readonly ConcurrentDictionary<string, byte[]> DumpedFileCache = new(StringComparer.OrdinalIgnoreCase);
 
@@ -43,7 +40,7 @@ public sealed unsafe class Dumper(NativeProcess process)
                 var imageLayout = i == 0 ? GetProbableImageLayout(page) : ImageLayout.File;
                 var address = (nuint)pageInfo.Address + (uint)i;
                 var peImage = DumpDotNetModule(process, address, imageLayout, out var fileName);
-                if (peImage is null || IsExcludedAssembly(peImage))
+                if (peImage is null || ExcludeAssemblyHelper.IsExcludedAssembly(peImage))
                 {
                     continue;
                 }
@@ -130,7 +127,7 @@ public sealed unsafe class Dumper(NativeProcess process)
         try
         {
             // 获取文件格式大小
-            var imageSize = GetImageSize(firstPage, ImageLayout.File);
+            var imageSize = PEImageDumper.GetImageSize(firstPage, ImageLayout.File);
 
             // 如果文件格式大小大于页面大小，说明在内存中是内存格式的，反之为文件格式
             // 这种判断不准确，如果文件文件大小小于最小页面大小，判断会出错
@@ -150,13 +147,13 @@ public sealed unsafe class Dumper(NativeProcess process)
         fileName = string.Empty;
         try
         {
-            var data = Dump(process, address, ref imageLayout);
+            var data = PEImageDumper.Dump(process, address, ref imageLayout);
             if (data is null)
             {
                 return null;
             }
 
-            data = ConvertImageLayout(data, imageLayout, ImageLayout.File);
+            data = PEImageDumper.ConvertImageLayout(data, imageLayout, ImageLayout.File);
             using var peImage = new PEImage(data, true);
             // 确保为有效PE文件
             if (peImage.ImageNTHeaders.OptionalHeader.DataDirectories[14].VirtualAddress == 0)
