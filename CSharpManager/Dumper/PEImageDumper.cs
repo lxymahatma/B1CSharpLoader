@@ -189,7 +189,7 @@ internal static unsafe class PEImageDumper
     /// <returns></returns>
     public static uint GetImageSize(PEImage peHeader, ImageLayout imageLayout)
     {
-        var lastSectionHeader = peHeader.ImageSectionHeaders.Last();
+        var lastSectionHeader = peHeader.ImageSectionHeaders[^1];
         uint alignment;
         uint imageSize;
         switch (imageLayout)

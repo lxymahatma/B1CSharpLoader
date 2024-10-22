@@ -38,7 +38,7 @@ public class CSharpModManager
         IsDumpDll = iniFile.GetValue("Dump", "Settings", "0").Trim() == "1";
         if (IsDumpDll)
         {
-            Task.Run(DumpDlls);
+            DumpDlls();
         }
     }
 

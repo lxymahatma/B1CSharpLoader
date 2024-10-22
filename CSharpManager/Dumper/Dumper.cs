@@ -1,9 +1,11 @@
 using System.Collections.Concurrent;
 using System.Runtime.ExceptionServices;
 using System.Text;
+using CSharpModBase;
 using dnlib.DotNet;
 using dnlib.PE;
 using NativeSharp;
+using static CSharpManager.Dumper.ExcludeAssemblyHelper;
 
 namespace CSharpManager.Dumper;
 
@@ -22,8 +24,9 @@ public sealed unsafe class Dumper(NativeProcess process)
                 return;
             }
 
+            // 0x40000000 bytes = 1 gigabytes
             var page = new byte[Math.Min((int)pageInfo.Size, 0x40000000)];
-            // 0x40000000 bytes = 1 giga bytes
+
             if (!process.TryReadBytes(pageInfo.Address, page))
             {
                 return;
@@ -49,19 +52,7 @@ public sealed unsafe class Dumper(NativeProcess process)
                     peImage = DumpDotNetModule(process, address, ImageLayout.File, out fileName);
                 }
 
-                if (peImage is null)
-                {
-                    continue;
-                }
-
-                try
-                {
-                    if (BuiltInAssemblyHelper.IsBuiltInAssembly(peImage))
-                    {
-                        continue;
-                    }
-                }
-                catch
+                if (peImage is null || IsExcludedAssembly(peImage))
                 {
                     continue;
                 }
@@ -155,6 +146,7 @@ public sealed unsafe class Dumper(NativeProcess process)
             var imageLayout = imageSize >= (uint)firstPage.Length ? ImageLayout.Memory : ImageLayout.File;
             // 如果文件格式大小大于页面大小，说明在内存中是内存格式的，反之为文件格式
             // 这种判断不准确，如果文件文件大小小于最小页面大小，判断会出错
+            Log.Debug(imageLayout.ToString());
             return imageLayout;
         }
         catch
