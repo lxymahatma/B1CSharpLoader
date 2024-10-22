@@ -1,3 +1,4 @@
+using CSharpManager.Extensions;
 using dnlib.PE;
 
 namespace CSharpManager.Dumper;
@@ -90,8 +91,10 @@ internal static unsafe class PEImageDumper
 
         var newPEImageData = new byte[GetImageSize(peImage, toImageLayout)];
         using var peHeader = new PEImage(peImage, false);
-        Buffer.BlockCopy(peImage, 0, newPEImageData, 0, (int)peHeader.ImageSectionHeaders[^1].EndOffset);
+
         // 复制PE头
+        Buffer.BlockCopy(peImage, 0, newPEImageData, 0, (int)peHeader.ImageSectionHeaders[^1].EndOffset);
+
         foreach (var sectionHeader in peHeader.ImageSectionHeaders)
         {
             switch (toImageLayout)

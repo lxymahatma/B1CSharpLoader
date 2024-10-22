@@ -1,5 +1,6 @@
 using System.Reflection;
 using CSharpManager.Dumper;
+using CSharpManager.Extensions;
 using Mono.Cecil;
 using static CSharpModBase.Common;
 
@@ -36,7 +37,7 @@ public class CSharpModManager
         IsDumpDll = iniFile.GetValue("Dump", "Settings", "0").Trim() == "1";
         if (IsDumpDll)
         {
-            DumpDlls();
+            Task.Run(DumpDlls).Await(() => Log.Debug("Finished Dumping"), Log.Error);
         }
     }
 
@@ -50,6 +51,8 @@ public class CSharpModManager
 
         var processId = NativeProcess.GetProcessIdsByName("b1-Win64-Shipping.exe").Single();
         var dumper = new DotNetDumper(NativeProcess.Open(processId, ProcessAccess.MemoryRead | ProcessAccess.QueryInformation));
+
+        Log.Debug("Start Dumping");
         dumper.DumpProcess(DumpedDllFolder);
     }
 
