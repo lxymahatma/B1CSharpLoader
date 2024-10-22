@@ -1,6 +1,5 @@
 using System.Reflection;
 using CSharpManager.Dumper;
-using CSharpManager.Extensions;
 using Mono.Cecil;
 using static CSharpModBase.Common;
 
@@ -37,7 +36,14 @@ public class CSharpModManager
         IsDumpDll = iniFile.GetValue("Dump", "Settings", "0").Trim() == "1";
         if (IsDumpDll)
         {
-            Task.Run(DumpDlls).Await(() => Log.Debug("Finished Dumping"), Log.Error);
+            try
+            {
+                DumpDlls();
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex);
+            }
         }
     }
 
@@ -54,6 +60,7 @@ public class CSharpModManager
 
         Log.Debug("Start Dumping");
         dumper.DumpProcess(DumpedDllFolder);
+        Log.Debug("Finished Dumping");
     }
 
     private static Assembly? TryLoadDll(string path)

@@ -38,6 +38,11 @@ internal static unsafe class PEImageDumper
 
         // 获取模块在内存中的大小
         var imageSize = GetImageSize(peHeader, imageLayout);
+        if (imageSize == 0)
+        {
+            return null;
+        }
+
         var peImage = new byte[imageSize];
 
         // 转储

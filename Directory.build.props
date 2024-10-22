@@ -1,0 +1,6 @@
+<Project>
+    <PropertyGroup>
+        <GameFolder Condition="Exists('$(B1_DIRECTORY)')">$(B1_DIRECTORY)</GameFolder>
+        <LoaderFolder>$(GameFolder)\b1\Binaries\Win64\CSharpLoader</LoaderFolder>
+    </PropertyGroup>
+</Project>

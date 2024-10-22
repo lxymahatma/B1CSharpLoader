@@ -46,7 +46,7 @@ public sealed unsafe class DotNetDumper(NativeProcess process)
                 continue;
             }
 
-            // Log.Debug($"Found assembly '{fileName}' at {address.FormatHex()} and image layout is {imageLayout}");
+            Log.Debug($"Found assembly '{fileName}' at {address.FormatHex()} and image layout is {imageLayout}");
 
             fileName = fileName.RemoveInvalidChars();
             if (IsSameFile(directory, fileName, peImage))
@@ -149,17 +149,17 @@ public sealed unsafe class DotNetDumper(NativeProcess process)
             return null;
         }
 
-        data = PEImageDumper.ConvertImageLayout(data, imageLayout, ImageLayout.File);
-        using var peImage = new PEImage(data, true);
-
-        // 确保为有效PE文件
-        if (peImage.ImageNTHeaders.OptionalHeader.DataDirectories[14].VirtualAddress == 0)
-        {
-            return null;
-        }
-
         try
         {
+            data = PEImageDumper.ConvertImageLayout(data, imageLayout, ImageLayout.File);
+            using var peImage = new PEImage(data, true);
+
+            // 确保为有效PE文件
+            if (peImage.ImageNTHeaders.OptionalHeader.DataDirectories[14].VirtualAddress == 0)
+            {
+                return null;
+            }
+
             using var moduleDef = ModuleDefMD.Load(peImage);
 
             // 再次验证是否为.NET程序集
