@@ -8,29 +8,6 @@ internal static unsafe class PEImageDumper
     /// <summary>
     ///     直接从内存中复制模块，不执行格式转换操作
     /// </summary>
-    /// <param name="processId"></param>
-    /// <param name="address"></param>
-    /// <param name="imageLayout"></param>
-    /// <returns></returns>
-    public static byte[]? Dump(uint processId, nuint address, ref ImageLayout imageLayout)
-    {
-        if (processId == 0)
-        {
-            throw new ArgumentNullException(nameof(processId));
-        }
-
-        if (address == 0)
-        {
-            throw new ArgumentNullException(nameof(address));
-        }
-
-        using var process = NativeProcess.Open(processId);
-        return Dump(process, address, ref imageLayout);
-    }
-
-    /// <summary>
-    ///     直接从内存中复制模块，不执行格式转换操作
-    /// </summary>
     /// <param name="process"></param>
     /// <param name="address"></param>
     /// <param name="imageLayout"></param>
@@ -44,25 +21,26 @@ internal static unsafe class PEImageDumper
         }
 
         var firstPageInfo = pageInfos[0];
-        if (!IsValidPage(firstPageInfo))
+        // 判断内存页是否有效
+        if (!firstPageInfo.IsValidPage())
         {
             return null;
         }
-        // 判断内存页是否有效
 
-        var atPageHeader = address == (nuint)firstPageInfo.Address;
-        if (!atPageHeader)
+        // 如果不在内存页头部，只可能是文件布局
+        if (address != (nuint)firstPageInfo.Address)
         {
             imageLayout = ImageLayout.File;
         }
-        // 如果不在内存页头部，只可能是文件布局
 
         var peHeader = new byte[(int)((byte*)firstPageInfo.Address + (int)firstPageInfo.Size - (byte*)address)];
         process.ReadBytes((void*)address, peHeader);
-        var imageSize = GetImageSize(peHeader, imageLayout);
-        // 获取模块在内存中的大小
 
+        // 获取模块在内存中的大小
+        var imageSize = GetImageSize(peHeader, imageLayout);
         var peImage = new byte[imageSize];
+
+        // 转储
         switch (imageLayout)
         {
             case ImageLayout.File:
@@ -72,8 +50,9 @@ internal static unsafe class PEImageDumper
                 }
 
                 break;
+
             case ImageLayout.Memory:
-                pageInfos = process.EnumeratePageInfos((void*)address, (byte*)address + imageSize).Where(t => IsValidPage(t)).ToArray();
+                pageInfos = process.EnumeratePageInfos((void*)address, (byte*)address + imageSize).Where(t => t.IsValidPage()).ToArray();
                 if (pageInfos.Length == 0)
                 {
                     return null;
@@ -81,8 +60,8 @@ internal static unsafe class PEImageDumper
 
                 foreach (var pageInfo in pageInfos)
                 {
-                    var offset = (uint)((ulong)pageInfo.Address - address);
-                    if (!process.TryReadBytes(pageInfo.Address, peImage, offset, (uint)pageInfo.Size))
+                    var offset = (ulong)pageInfo.Address - address;
+                    if (!process.TryReadBytes(pageInfo.Address, peImage, (uint)offset, (uint)pageInfo.Size))
                     {
                         return null;
                     }
@@ -92,13 +71,9 @@ internal static unsafe class PEImageDumper
             default:
                 throw new NotSupportedException();
         }
-        // 转储
 
         return peImage;
     }
-
-    private static bool IsValidPage(PageInfo pageInfo) =>
-        pageInfo.Protection != 0 && (pageInfo.Protection & MemoryProtection.NoAccess) == 0 && (ulong)pageInfo.Size <= int.MaxValue;
 
     /// <summary>
     ///     转换模块布局
@@ -109,29 +84,6 @@ internal static unsafe class PEImageDumper
     /// <returns></returns>
     public static byte[] ConvertImageLayout(byte[] peImage, ImageLayout fromImageLayout, ImageLayout toImageLayout)
     {
-        switch (fromImageLayout)
-        {
-            case ImageLayout.File:
-            case ImageLayout.Memory:
-                break;
-            default:
-                throw new ArgumentOutOfRangeException(nameof(fromImageLayout));
-        }
-
-        switch (toImageLayout)
-        {
-            case ImageLayout.File:
-            case ImageLayout.Memory:
-                break;
-            default:
-                throw new ArgumentOutOfRangeException(nameof(toImageLayout));
-        }
-
-        if (peImage is null)
-        {
-            throw new ArgumentNullException(nameof(peImage));
-        }
-
         if (fromImageLayout == toImageLayout)
         {
             return peImage;
@@ -139,7 +91,7 @@ internal static unsafe class PEImageDumper
 
         var newPEImageData = new byte[GetImageSize(peImage, toImageLayout)];
         using var peHeader = new PEImage(peImage, false);
-        Buffer.BlockCopy(peImage, 0, newPEImageData, 0, (int)peHeader.ImageSectionHeaders.Last().EndOffset);
+        Buffer.BlockCopy(peImage, 0, newPEImageData, 0, (int)peHeader.ImageSectionHeaders[^1].EndOffset);
         // 复制PE头
         foreach (var sectionHeader in peHeader.ImageSectionHeaders)
         {
@@ -171,14 +123,9 @@ internal static unsafe class PEImageDumper
     /// <returns></returns>
     public static uint GetImageSize(byte[] peHeader, ImageLayout imageLayout)
     {
-        if (peHeader is null)
-        {
-            throw new ArgumentNullException(nameof(peHeader));
-        }
-
+        // PEImage构造器中的imageLayout参数无关紧要，因为只需要解析PEHeader
         using var peImage = new PEImage(peHeader, false);
         return GetImageSize(peImage, imageLayout);
-        // PEImage构造器中的imageLayout参数无关紧要，因为只需要解析PEHeader
     }
 
     /// <summary>

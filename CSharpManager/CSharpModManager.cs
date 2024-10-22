@@ -9,7 +9,7 @@ namespace CSharpManager;
 
 public class CSharpModManager
 {
-    private static readonly string dumpedDllFolder = Path.Combine(LoaderDir, "GameDll");
+    private static readonly string DumpedDllFolder = Path.Combine(LoaderDir, "GameDll");
     private Thread? _loopThread;
     private static string? LoadingModName { get; set; }
 
@@ -44,15 +44,15 @@ public class CSharpModManager
 
     private static void DumpDlls()
     {
-        if (!Directory.Exists(dumpedDllFolder))
+        if (!Directory.Exists(DumpedDllFolder))
         {
-            Directory.CreateDirectory(dumpedDllFolder);
+            Directory.CreateDirectory(DumpedDllFolder);
             Log.Debug("Creating dump folder");
         }
 
         var processId = NativeProcess.GetProcessIdsByName("b1-Win64-Shipping.exe").Single();
         var dumper = new Dumper.Dumper(NativeProcess.Open(processId, ProcessAccess.MemoryRead | ProcessAccess.QueryInformation));
-        dumper.DumpProcess(dumpedDllFolder);
+        dumper.DumpProcess(DumpedDllFolder);
     }
 
     private static Assembly? TryLoadDll(string path)

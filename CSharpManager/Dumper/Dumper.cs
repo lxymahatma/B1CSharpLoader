@@ -1,25 +1,23 @@
 using System.Collections.Concurrent;
 using System.Runtime.ExceptionServices;
-using System.Text;
-using CSharpModBase;
 using dnlib.DotNet;
 using dnlib.PE;
 using NativeSharp;
 using static CSharpManager.Dumper.ExcludeAssemblyHelper;
+using static CSharpManager.Dumper.PEImageDumper;
 
 namespace CSharpManager.Dumper;
 
 public sealed unsafe class Dumper(NativeProcess process)
 {
-    private static readonly char[] InvalidFileNameChars = Path.GetInvalidFileNameChars();
+    private static readonly ConcurrentDictionary<string, byte[]> DumpedFileCache = new(StringComparer.OrdinalIgnoreCase);
 
     public int DumpProcess(string directoryPath)
     {
         var count = 0;
-        var originalFileCache = new ConcurrentDictionary<string, byte[]>(StringComparer.OrdinalIgnoreCase);
         Parallel.ForEach(process.EnumeratePageInfos(), pageInfo =>
         {
-            if (!IsValidPage(pageInfo))
+            if (!pageInfo.IsValidPage())
             {
                 return;
             }
@@ -45,13 +43,6 @@ public sealed unsafe class Dumper(NativeProcess process)
                 var imageLayout = i == 0 ? GetProbableImageLayout(page) : ImageLayout.File;
                 var address = (nuint)pageInfo.Address + (uint)i;
                 var peImage = DumpDotNetModule(process, address, imageLayout, out var fileName);
-                if (peImage is null && i == 0)
-                {
-                    // 也许判断有误，尝试一下另一种格式。如果不是页面起始位置，必须是文件布局。
-                    imageLayout = imageLayout == ImageLayout.File ? ImageLayout.Memory : ImageLayout.File;
-                    peImage = DumpDotNetModule(process, address, ImageLayout.File, out fileName);
-                }
-
                 if (peImage is null || IsExcludedAssembly(peImage))
                 {
                     continue;
@@ -59,8 +50,8 @@ public sealed unsafe class Dumper(NativeProcess process)
 
                 Console.WriteLine($"Found assembly '{fileName}' at {address.FormatHex()} and image layout is {imageLayout}");
 
-                fileName = EnsureValidFileName(fileName);
-                if (IsSameFile(directoryPath, fileName, peImage, originalFileCache))
+                fileName = fileName.RemoveInvalidChars();
+                if (IsSameFile(directoryPath, fileName, peImage))
                 {
                     continue;
                 }
@@ -73,9 +64,6 @@ public sealed unsafe class Dumper(NativeProcess process)
         });
         return count;
     }
-
-    private static bool IsValidPage(PageInfo pageInfo) =>
-        pageInfo.Protection != 0 && (pageInfo.Protection & MemoryProtection.NoAccess) == 0 && (ulong)pageInfo.Size <= int.MaxValue;
 
     [HandleProcessCorruptedStateExceptions]
     private static bool MaybePEImage(byte* p, int size)
@@ -141,12 +129,13 @@ public sealed unsafe class Dumper(NativeProcess process)
     {
         try
         {
-            var imageSize = PEImageDumper.GetImageSize(firstPage, ImageLayout.File);
             // 获取文件格式大小
-            var imageLayout = imageSize >= (uint)firstPage.Length ? ImageLayout.Memory : ImageLayout.File;
+            var imageSize = GetImageSize(firstPage, ImageLayout.File);
+
             // 如果文件格式大小大于页面大小，说明在内存中是内存格式的，反之为文件格式
             // 这种判断不准确，如果文件文件大小小于最小页面大小，判断会出错
-            Log.Debug(imageLayout.ToString());
+            var imageLayout = imageSize >= (uint)firstPage.Length ? ImageLayout.Memory : ImageLayout.File;
+
             return imageLayout;
         }
         catch
@@ -161,13 +150,13 @@ public sealed unsafe class Dumper(NativeProcess process)
         fileName = string.Empty;
         try
         {
-            var data = PEImageDumper.Dump(process, address, ref imageLayout);
+            var data = Dump(process, address, ref imageLayout);
             if (data is null)
             {
                 return null;
             }
 
-            data = PEImageDumper.ConvertImageLayout(data, imageLayout, ImageLayout.File);
+            data = ConvertImageLayout(data, imageLayout, ImageLayout.File);
             using var peImage = new PEImage(data, true);
             // 确保为有效PE文件
             if (peImage.ImageNTHeaders.OptionalHeader.DataDirectories[14].VirtualAddress == 0)
@@ -212,54 +201,22 @@ public sealed unsafe class Dumper(NativeProcess process)
         }
     }
 
-    private static string EnsureValidFileName(string fileName)
-    {
-        if (string.IsNullOrEmpty(fileName))
-        {
-            return string.Empty;
-        }
-
-        var newFileName = new StringBuilder(fileName.Length);
-        foreach (var chr in fileName)
-        {
-            if (!InvalidFileNameChars.Contains(chr))
-            {
-                newFileName.Append(chr);
-            }
-        }
-
-        return newFileName.ToString();
-    }
-
-    private static bool IsSameFile(string directoryPath, string fileName, byte[] data, ConcurrentDictionary<string, byte[]> originalFileCache)
+    private static bool IsSameFile(string directoryPath, string fileName, byte[] data)
     {
         var filePath = Path.Combine(directoryPath, fileName);
         if (!File.Exists(filePath))
         {
-            originalFileCache[fileName] = data;
+            DumpedFileCache[fileName] = data;
             return false;
         }
 
-        if (!originalFileCache.TryGetValue(fileName, out var originalData))
+        if (!DumpedFileCache.TryGetValue(fileName, out var originalData))
         {
             originalData = File.ReadAllBytes(filePath);
-            originalFileCache.TryAdd(fileName, originalData);
+            DumpedFileCache[fileName] = originalData;
         }
 
-        if (data.Length != originalData.Length)
-        {
-            return false;
-        }
-
-        for (var i = 0; i < data.Length; i++)
-        {
-            if (data[i] != originalData[i])
-            {
-                return false;
-            }
-        }
-
-        return true;
+        return data.Length == originalData.Length && data.SequenceEqual(originalData);
     }
 
     private static string EnsureNoRepeatFileName(string directoryPath, string fileName)

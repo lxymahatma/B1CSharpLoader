@@ -44,7 +44,7 @@ internal static class ExcludeAssemblyHelper
         // "Novell.Directory.Ldap, Version=4.0.0.0, Culture=neutral, PublicKeyToken=0738eb9f132ed756",
         // "Protobuf.RunTime, Version=1.0.0.0, Culture=neutral, PublicKeyToken=",
         // "Sentry, Version=3.41.3.0, Culture=neutral, PublicKeyToken=fba2ec45388e2af0",
-        // "SharpDX.XInput, Version=4.2.0.0, Culture=neutral, PublicKeyToken=b4dcf0f35e5521f1",
+        "SharpDX.XInput, Version=4.2.0.0, Culture=neutral, PublicKeyToken=b4dcf0f35e5521f1",
         "System, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089",
         // "System.Buffers, Version=4.0.3.0, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51",
         // "System.Collections.Immutable, Version=5.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a",
