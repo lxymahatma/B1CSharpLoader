@@ -7,14 +7,14 @@ namespace CSharpManager;
 
 public class CSharpModManager
 {
-    private static readonly string DumpedDllFolder = Path.Combine(LoaderDir, "GameDll");
+    private static readonly string DumpedDllFolder = Path.Combine(LoaderDir, "GameAssemblies");
+    private static readonly Ini _iniFile = new(Path.Combine(LoaderDir, "b1cs.ini"));
     private Thread? _loopThread;
     private static string? LoadingModName { get; set; }
 
     public List<ICSharpMod> LoadedMods { get; } = [];
     public InputManager InputManager { get; } = new();
     private bool Develop { get; }
-    private bool IsDumpDll { get; }
 
     static CSharpModManager()
     {
@@ -29,25 +29,30 @@ public class CSharpModManager
     {
         Utils.InitInputManager(InputManager);
         // load config from ini
-        Ini iniFile = new(Path.Combine(LoaderDir, "b1cs.ini"));
-        Develop = iniFile.GetValue("Develop", "Settings", "1").Trim() == "1";
+        Develop = _iniFile.GetValue("Develop", "Settings", "1").Trim() == "1";
         Log.Debug($"Develop: {Develop}");
+        CheckDumpAssemblies();
+    }
 
-        IsDumpDll = iniFile.GetValue("Dump", "Settings", "0").Trim() == "1";
-        if (IsDumpDll)
+    private static void CheckDumpAssemblies()
+    {
+        var isDumpAssemblies = _iniFile.GetValue("Dump", "Settings", "0").Trim() == "1";
+        if (!isDumpAssemblies)
         {
-            try
-            {
-                DumpDlls();
-            }
-            catch (Exception ex)
-            {
-                Log.Error(ex);
-            }
+            return;
+        }
+
+        try
+        {
+            DumpAssemblies();
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex);
         }
     }
 
-    private static void DumpDlls()
+    private static void DumpAssemblies()
     {
         if (!Directory.Exists(DumpedDllFolder))
         {
