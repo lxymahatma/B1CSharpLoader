@@ -1,5 +1,5 @@
 using System.Reflection;
-using CSharpManager.Ini;
+using CSharpManager.IniLib;
 using CSharpModBase;
 using CSharpModBase.Input;
 using CSharpModBase.Utils;
@@ -30,7 +30,7 @@ public sealed class CSharpModManager
         InputUtils.InitInputManager(InputManager);
         // load config from ini
         IniReader iniReader = new(Path.Combine(CommonDirs.LoaderDir, "b1cs.ini"));
-        IsDevelopMode = iniReader.GetValue("Develop", "Settings", "1") == "1";
+        IsDevelopMode = iniReader.GetBool("Develop", "Settings");
         Log.Debug($"Develop: {IsDevelopMode}");
     }
 
