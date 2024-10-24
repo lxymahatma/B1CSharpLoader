@@ -1,6 +1,7 @@
 using System.Reflection;
 using CSharpModBase;
 using CSharpModBase.Input;
+using HarmonyLib;
 using Mono.Cecil;
 using static CSharpModBase.Common;
 
@@ -83,12 +84,12 @@ public class CSharpModManager
         LoadedMods.Clear();
         if (!Directory.Exists(ModDir))
         {
-            Log.Error($"Mod dir {ModDir} not exists");
+            Log.Error($"Mod dir {ModDir} does not exist");
             return;
         }
 
         string[] dirs = Directory.GetDirectories(ModDir);
-        var ICSharpModType = typeof(ICSharpMod);
+        var interfaceType = typeof(ICSharpMod);
         foreach (var dir in dirs)
         {
             LoadingModName = Path.GetFileName(dir);
@@ -115,27 +116,31 @@ public class CSharpModManager
                     assembly = Assembly.LoadFrom(dllPath);
                 }
 
-                foreach (var type in assembly.GetTypes())
-                {
-                    if (ICSharpModType.IsAssignableFrom(type))
-                    {
-                        Log.Debug($"Found ICSharpMod: {type}");
-
-                        if (Activator.CreateInstance(type) is ICSharpMod mod)
-                        {
-                            mod.Init();
-                            LoadedMods.Add(mod);
-                            Log.Debug($"Loaded mod {mod.Name} {mod.Version}");
-                        }
-                    }
-                }
-
+                LoadMod(assembly, interfaceType);
                 LoadingModName = null;
             }
             catch (Exception e)
             {
                 Log.Error($"Load {dllPath} failed:");
                 Log.Error(e);
+            }
+        }
+    }
+
+    private void LoadMod(Assembly assembly, Type interfaceType)
+    {
+        var harmony = new Harmony($"{assembly.FullName}");
+        harmony.PatchAll(assembly);
+
+        foreach (var inheritedType in assembly.GetTypes().Where(interfaceType.IsAssignableFrom))
+        {
+            Log.Debug($"Found ICSharpMod: {inheritedType}");
+
+            if (Activator.CreateInstance(inheritedType) is ICSharpMod mod)
+            {
+                mod.Init();
+                LoadedMods.Add(mod);
+                Log.Debug($"Loaded mod {mod.Name} {mod.Version}");
             }
         }
     }
