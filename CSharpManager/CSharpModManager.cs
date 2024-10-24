@@ -9,6 +9,7 @@ namespace CSharpManager;
 
 public class CSharpModManager
 {
+    private static readonly Harmony HarmonyInstance = new("CSharpModManager");
     private Thread? _loopThread;
     private static string? LoadingModName { get; set; }
 
@@ -129,20 +130,22 @@ public class CSharpModManager
 
     private void LoadMod(Assembly assembly, Type interfaceType)
     {
-        var harmony = new Harmony($"{assembly.FullName}");
-        harmony.PatchAll(assembly);
-
         foreach (var inheritedType in assembly.GetTypes().Where(interfaceType.IsAssignableFrom))
         {
             Log.Debug($"Found ICSharpMod: {inheritedType}");
 
-            if (Activator.CreateInstance(inheritedType) is ICSharpMod mod)
+            if (Activator.CreateInstance(inheritedType) is not ICSharpMod mod)
             {
-                mod.Init();
-                LoadedMods.Add(mod);
-                Log.Debug($"Loaded mod {mod.Name} {mod.Version}");
+                return;
             }
+
+            mod.Init();
+            LoadedMods.Add(mod);
+            Log.Debug($"Loaded mod {mod.Name} {mod.Version}");
         }
+
+        var harmony = new Harmony($"{assembly.FullName}");
+        harmony.PatchAll(assembly);
     }
 
     public void ReloadMods()
@@ -162,6 +165,8 @@ public class CSharpModManager
             }
         }
 
+        // Unpatch everything inside appdomain
+        HarmonyInstance.UnpatchAll();
         LoadMods();
     }
 
