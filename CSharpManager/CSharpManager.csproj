@@ -19,7 +19,7 @@
     </ItemGroup>
 
     <ItemGroup>
-        <PackageReference Include="Mono.Cecil" Version="0.11.5"/>
+        <PackageReference Include="AsmResolver.DotNet" Version="6.0.0-beta.1"/>
     </ItemGroup>
 
 </Project>

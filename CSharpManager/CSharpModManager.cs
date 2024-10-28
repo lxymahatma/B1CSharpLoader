@@ -1,7 +1,7 @@
 using System.Reflection;
+using AsmResolver.DotNet;
 using CSharpModBase;
 using CSharpModBase.Input;
-using Mono.Cecil;
 using static CSharpModBase.Common;
 
 namespace CSharpManager;
@@ -104,10 +104,10 @@ public class CSharpModManager
                 Assembly assembly;
                 if (Develop)
                 {
-                    using var assemblyDef = AssemblyDefinition.ReadAssembly(dllPath);
-                    assemblyDef.Name.Name += DateTime.Now.ToString("_yyyyMMdd_HHmmssffff");
+                    var assemblyDef = AssemblyDefinition.FromFile(dllPath);
+                    assemblyDef.Name += DateTime.Now.ToString("_yyyyMMdd_HHmmssffff");
                     using MemoryStream stream = new();
-                    assemblyDef.Write(stream);
+                    assemblyDef.WriteManifest(stream);
                     assembly = Assembly.Load(stream.GetBuffer());
                 }
                 else
