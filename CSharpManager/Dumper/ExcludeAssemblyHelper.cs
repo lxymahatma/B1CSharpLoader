@@ -1,5 +1,3 @@
-using dnlib.DotNet;
-
 namespace CSharpManager.Dumper;
 
 internal static class ExcludeAssemblyHelper
@@ -87,18 +85,18 @@ internal static class ExcludeAssemblyHelper
 
     public static bool IsExcludedAssembly(byte[] data)
     {
-        using var module = ModuleDefMD.Load(data);
+        var module = ModuleDefinition.FromBytes(data);
         return IsExcludedAssembly(module.Assembly);
     }
 
-    public static bool IsExcludedAssembly(IAssembly? assembly)
+    public static bool IsExcludedAssembly(AssemblyDefinition? assembly)
     {
         if (assembly is null)
         {
             return false;
         }
 
-        var fullName = $"{assembly.Name}, Version={assembly.Version}, Culture=neutral, PublicKeyToken={assembly.PublicKeyOrToken.Token}";
+        var fullName = $"{assembly.Name}, Version={assembly.Version}, Culture=neutral, PublicKeyToken={assembly.GetPublicKeyToken().ToHexString()}";
         return ExcludedAssemblyFullNames.Contains(fullName);
     }
 }

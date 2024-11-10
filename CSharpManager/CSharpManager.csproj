@@ -20,9 +20,9 @@
     </ItemGroup>
 
     <ItemGroup>
+        <PackageReference Include="AsmResolver.DotNet" Version="6.0.0-beta.1"/>
         <PackageReference Include="dnlib" Version="4.4.0"/>
         <PackageReference Include="IndexRange" Version="1.0.3"/>
-        <PackageReference Include="Mono.Cecil" Version="0.11.5"/>
         <PackageReference Include="NativeSharp-lib" Version="3.0.0.1"/>
     </ItemGroup>
 

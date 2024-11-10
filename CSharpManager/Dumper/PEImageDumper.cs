@@ -1,4 +1,3 @@
-using CSharpManager.Extensions;
 using dnlib.PE;
 
 namespace CSharpManager.Dumper;

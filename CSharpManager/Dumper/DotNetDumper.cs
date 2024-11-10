@@ -1,6 +1,5 @@
 using System.Collections.Concurrent;
 using System.Runtime.ExceptionServices;
-using CSharpManager.Extensions;
 using dnlib.DotNet;
 using dnlib.PE;
 
@@ -48,7 +47,7 @@ public sealed unsafe class DotNetDumper(NativeProcess process)
 
             Log.Debug($"Found assembly '{fileName}' at {address.FormatHex()} and image layout is {imageLayout}");
 
-            fileName = fileName.RemoveInvalidChars();
+            /*fileName = fileName.RemoveInvalidChars();
             if (IsSameFile(directory, fileName, peImage))
             {
                 continue;
@@ -56,7 +55,7 @@ public sealed unsafe class DotNetDumper(NativeProcess process)
 
             fileName = EnsureNoRepeatFileName(directory, fileName);
             var filePath = Path.Combine(directory, fileName);
-            File.WriteAllBytes(filePath, peImage);
+            File.WriteAllBytes(filePath, peImage);*/
         }
     }
 
