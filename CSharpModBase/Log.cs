@@ -2,46 +2,32 @@ namespace CSharpModBase;
 
 public static class Log
 {
+    private static readonly StreamWriter LogFile = File.CreateText(Path.Combine(Common.LoaderDir, "CSharpLog.log"));
+    private static readonly LogLevel _logLevel = LogLevel.Info;
     private static string DateTimeString => DateTime.Now.ToString("MM-dd HH:mm:ss"); // .fff
-    // private static readonly StreamWriter LogFile = File.CreateText("CSharpLog.txt");
 
     public static void Info(string message)
     {
         var text = $"{DateTimeString} [I] {message}";
-        Console.WriteLine(text);
-        // LogFile.WriteLine(text);
+        WriteLine(text, LogLevel.Info, ConsoleColor.White);
     }
 
     public static void Debug(string message)
     {
-        using var color = new ChangeConsoleColor(ConsoleColor.Gray);
         var text = $"{DateTimeString} [D] {message}";
-        Console.WriteLine(text);
-        // LogFile.WriteLine(text);
+        WriteLine(text, LogLevel.Debug, ConsoleColor.Gray);
     }
 
     public static void Warn(string message)
     {
-        using var color = new ChangeConsoleColor(ConsoleColor.Yellow);
         var text = $"{DateTimeString} [W] {message}";
-        Console.WriteLine(text);
-        // LogFile.WriteLine(text);
-    }
-
-    public static void WarnIf(bool condition, string message)
-    {
-        if (condition)
-        {
-            Warn(message);
-        }
+        WriteLine(text, LogLevel.Warn, ConsoleColor.Yellow);
     }
 
     public static void Error(string message)
     {
-        using var color = new ChangeConsoleColor(ConsoleColor.Red);
         var text = $"{DateTimeString} [E] {message}";
-        Console.Error.WriteLine(text);
-        // LogFile.WriteLine(text);
+        WriteLine(text, LogLevel.Error, ConsoleColor.Red);
     }
 
     public static void Error(Exception e)
@@ -49,9 +35,24 @@ public static class Log
         Error(e.Message);
         Error(e.StackTrace);
     }
+
+    private static void WriteLine(string message, LogLevel level, ConsoleColor color)
+    {
+        if (level < _logLevel)
+        {
+            return;
+        }
+
+        using (new ChangeConsoleColor(color))
+        {
+            Console.WriteLine(message);
+        }
+
+        LogFile.WriteLine(message);
+    }
 }
 
-public readonly struct ChangeConsoleColor : IDisposable
+public readonly ref struct ChangeConsoleColor : IDisposable
 {
     private readonly ConsoleColor _currentForeground;
 
