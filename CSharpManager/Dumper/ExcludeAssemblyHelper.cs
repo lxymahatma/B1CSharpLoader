@@ -2,6 +2,9 @@ namespace CSharpManager.Dumper;
 
 internal static class ExcludeAssemblyHelper
 {
+    /// <summary>
+    ///     Exclude Uncommented Assemblies
+    /// </summary>
     private static HashSet<string> ExcludedAssemblyFullNames { get; } = new(StringComparer.OrdinalIgnoreCase)
     {
         "Accessibility, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a",
@@ -15,7 +18,6 @@ internal static class ExcludeAssemblyHelper
         // "Diana.Client.Common, Version=1.0.0.0, Culture=neutral, PublicKeyToken=",
         // "Diana.Common, Version=1.0.0.0, Culture=neutral, PublicKeyToken=",
         // "Diana.Server.Common, Version=1.0.0.0, Culture=neutral, PublicKeyToken=",
-        "dnlib, Version=4.4.0.0, Culture=neutral, PublicKeyToken=50e96378b6e77999",
         // "Google.Protobuf, Version=1.0.0.0, Culture=neutral, PublicKeyToken=",
         // "GSE.Core, Version=1.0.0.0, Culture=neutral, PublicKeyToken=",
         // "GSE.GSNet, Version=1.0.0.0, Culture=neutral, PublicKeyToken=",

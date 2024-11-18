@@ -1,7 +1,6 @@
 using System.Collections.Concurrent;
 using System.Runtime.ExceptionServices;
-using dnlib.DotNet;
-using dnlib.PE;
+using AsmResolver.PE.File;
 
 namespace CSharpManager.Dumper;
 
@@ -37,17 +36,16 @@ public sealed unsafe class DotNetDumper(NativeProcess process)
                 }
             }
 
-            var imageLayout = i == 0 ? GetProbableImageLayout(page) : ImageLayout.File;
             var address = (nuint)pageInfo.Address + (uint)i;
-            var peImage = DumpDotNetModule(process, address, imageLayout, out var fileName);
+            var peImage = DumpDotNetModule(process, address, out var fileName);
             if (peImage is null || ExcludeAssemblyHelper.IsExcludedAssembly(peImage))
             {
                 continue;
             }
 
-            Log.Debug($"Found assembly '{fileName}' at {address.FormatHex()} and image layout is {imageLayout}");
+            Log.Debug($"Found assembly '{fileName}' at {address.FormatHex()}");
 
-            /*fileName = fileName.RemoveInvalidChars();
+            fileName = fileName.RemoveInvalidChars();
             if (IsSameFile(directory, fileName, peImage))
             {
                 continue;
@@ -55,7 +53,7 @@ public sealed unsafe class DotNetDumper(NativeProcess process)
 
             fileName = EnsureNoRepeatFileName(directory, fileName);
             var filePath = Path.Combine(directory, fileName);
-            File.WriteAllBytes(filePath, peImage);*/
+            File.WriteAllBytes(filePath, peImage);
         }
     }
 
@@ -119,30 +117,11 @@ public sealed unsafe class DotNetDumper(NativeProcess process)
     }
 
     [HandleProcessCorruptedStateExceptions]
-    private static ImageLayout GetProbableImageLayout(byte[] firstPage)
-    {
-        try
-        {
-            // 获取文件格式大小
-            var imageSize = PEImageDumper.GetImageSize(firstPage, ImageLayout.File);
-
-            // 如果文件格式大小大于页面大小，说明在内存中是内存格式的，反之为文件格式
-            // 这种判断不准确，如果文件文件大小小于最小页面大小，判断会出错
-            var imageLayout = imageSize >= (uint)firstPage.Length ? ImageLayout.Memory : ImageLayout.File;
-            return imageLayout;
-        }
-        catch
-        {
-            return ImageLayout.Memory;
-        }
-    }
-
-    [HandleProcessCorruptedStateExceptions]
-    private static byte[]? DumpDotNetModule(NativeProcess process, nuint address, ImageLayout imageLayout, out string fileName)
+    private static byte[]? DumpDotNetModule(NativeProcess process, nuint address, out string fileName)
     {
         fileName = string.Empty;
 
-        var data = PEImageDumper.Dump(process, address, ref imageLayout);
+        var data = PEImageDumper.Dump(process, address);
         if (data is null)
         {
             return null;
@@ -150,31 +129,23 @@ public sealed unsafe class DotNetDumper(NativeProcess process)
 
         try
         {
-            data = PEImageDumper.ConvertImageLayout(data, imageLayout, ImageLayout.File);
-            using var peImage = new PEImage(data, true);
+            var peFile = PEFile.FromBytes(data);
 
             // 确保为有效PE文件
-            if (peImage.ImageNTHeaders.OptionalHeader.DataDirectories[14].VirtualAddress == 0)
+            if (peFile.OptionalHeader.DataDirectories[14].VirtualAddress == 0)
             {
                 return null;
             }
 
-            using var moduleDef = ModuleDefMD.Load(peImage);
-
-            // 再次验证是否为.NET程序集
-            if (moduleDef is null)
+            var module = ModuleDefinition.FromFile(peFile);
+            if (module.Assembly is not null ? module.Assembly.Name!.Length == 0 : module.Name!.Length == 0)
             {
                 return null;
             }
 
-            if (moduleDef.Assembly is not null ? moduleDef.Assembly.Name.Length == 0 : moduleDef.Name.Length == 0)
-            {
-                return null;
-            }
-
-            fileName = moduleDef.Assembly is not null
-                ? moduleDef.Assembly.Name + (moduleDef.EntryPoint is null ? ".dll" : ".exe")
-                : moduleDef.Name;
+            fileName = module.Assembly is not null
+                ? module.Assembly.Name + (module.HasNativeEntryPoint ? ".exe" : ".dll")
+                : module.Name!;
         }
         catch
         {

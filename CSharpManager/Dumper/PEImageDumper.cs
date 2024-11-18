@@ -1,4 +1,4 @@
-using dnlib.PE;
+using AsmResolver.PE.File;
 
 namespace CSharpManager.Dumper;
 
@@ -9,9 +9,8 @@ internal static unsafe class PEImageDumper
     /// </summary>
     /// <param name="process"></param>
     /// <param name="address"></param>
-    /// <param name="imageLayout"></param>
     /// <returns></returns>
-    public static byte[]? Dump(NativeProcess process, nuint address, ref ImageLayout imageLayout)
+    public static byte[]? Dump(NativeProcess process, nuint address)
     {
         var pageInfos = process.EnumeratePageInfos((void*)address, (void*)address).ToArray();
         if (pageInfos.Length == 0)
@@ -26,17 +25,17 @@ internal static unsafe class PEImageDumper
             return null;
         }
 
-        // 如果不在内存页头部，只可能是文件布局
-        if (address != (nuint)firstPageInfo.Address)
+        // 如果在内存页头部，说明是内存格式
+        if (address == (nuint)firstPageInfo.Address)
         {
-            imageLayout = ImageLayout.File;
+            return null;
         }
 
-        var peHeader = new byte[(int)((byte*)firstPageInfo.Address + (int)firstPageInfo.Size - (byte*)address)];
-        process.ReadBytes((void*)address, peHeader);
+        var peFile = new byte[(int)((byte*)firstPageInfo.Address + (int)firstPageInfo.Size - (byte*)address)];
+        process.ReadBytes((void*)address, peFile);
 
         // 获取模块在内存中的大小
-        var imageSize = GetImageSize(peHeader, imageLayout);
+        var imageSize = GetImageSize(peFile);
         if (imageSize == 0)
         {
             return null;
@@ -44,120 +43,35 @@ internal static unsafe class PEImageDumper
 
         var peImage = new byte[imageSize];
 
-        // 转储
-        switch (imageLayout)
+        if (!process.TryReadBytes((void*)address, peImage, 0, imageSize))
         {
-            case ImageLayout.File:
-                if (!process.TryReadBytes((void*)address, peImage, 0, imageSize))
-                {
-                    return null;
-                }
-
-                break;
-
-            case ImageLayout.Memory:
-                pageInfos = process.EnumeratePageInfos((void*)address, (byte*)address + imageSize).Where(t => t.IsValidPage()).ToArray();
-                if (pageInfos.Length == 0)
-                {
-                    return null;
-                }
-
-                foreach (var pageInfo in pageInfos)
-                {
-                    var offset = (ulong)pageInfo.Address - address;
-                    if (!process.TryReadBytes(pageInfo.Address, peImage, (uint)offset, (uint)pageInfo.Size))
-                    {
-                        return null;
-                    }
-                }
-
-                break;
-            default:
-                throw new NotSupportedException();
+            return null;
         }
 
         return peImage;
     }
 
     /// <summary>
-    ///     转换模块布局
+    ///     获取模块大小
     /// </summary>
-    /// <param name="peImage"></param>
-    /// <param name="fromImageLayout"></param>
-    /// <param name="toImageLayout"></param>
+    /// <param name="peFile"></param>
     /// <returns></returns>
-    public static byte[] ConvertImageLayout(byte[] peImage, ImageLayout fromImageLayout, ImageLayout toImageLayout)
+    public static uint GetImageSize(byte[] peFile)
     {
-        if (fromImageLayout == toImageLayout)
-        {
-            return peImage;
-        }
-
-        var newPEImageData = new byte[GetImageSize(peImage, toImageLayout)];
-        using var peHeader = new PEImage(peImage, false);
-
-        // 复制PE头
-        Buffer.BlockCopy(peImage, 0, newPEImageData, 0, (int)peHeader.ImageSectionHeaders[^1].EndOffset);
-
-        foreach (var sectionHeader in peHeader.ImageSectionHeaders)
-        {
-            switch (toImageLayout)
-            {
-                case ImageLayout.File:
-                    // ImageLayout.Memory -> ImageLayout.File
-                    Buffer.BlockCopy(peImage, (int)sectionHeader.VirtualAddress, newPEImageData, (int)sectionHeader.PointerToRawData,
-                        (int)sectionHeader.SizeOfRawData);
-                    break;
-                case ImageLayout.Memory:
-                    // ImageLayout.File -> ImageLayout.Memory
-                    Buffer.BlockCopy(peImage, (int)sectionHeader.PointerToRawData, newPEImageData, (int)sectionHeader.VirtualAddress,
-                        (int)sectionHeader.SizeOfRawData);
-                    break;
-                default:
-                    throw new NotSupportedException();
-            }
-        }
-
-        return newPEImageData;
+        var peImage = PEFile.FromBytes(peFile);
+        return GetImageSize(peImage);
     }
 
     /// <summary>
     ///     获取模块大小
     /// </summary>
-    /// <param name="peHeader"></param>
-    /// <param name="imageLayout"></param>
+    /// <param name="peFile"></param>
     /// <returns></returns>
-    public static uint GetImageSize(byte[] peHeader, ImageLayout imageLayout)
+    public static uint GetImageSize(PEFile peFile)
     {
-        // PEImage构造器中的imageLayout参数无关紧要，因为只需要解析PEHeader
-        using var peImage = new PEImage(peHeader, false);
-        return GetImageSize(peImage, imageLayout);
-    }
-
-    /// <summary>
-    ///     获取模块大小
-    /// </summary>
-    /// <param name="peHeader"></param>
-    /// <param name="imageLayout"></param>
-    /// <returns></returns>
-    public static uint GetImageSize(PEImage peHeader, ImageLayout imageLayout)
-    {
-        var lastSectionHeader = peHeader.ImageSectionHeaders[^1];
-        uint alignment;
-        uint imageSize;
-        switch (imageLayout)
-        {
-            case ImageLayout.File:
-                alignment = peHeader.ImageNTHeaders.OptionalHeader.FileAlignment;
-                imageSize = lastSectionHeader.PointerToRawData + lastSectionHeader.SizeOfRawData;
-                break;
-            case ImageLayout.Memory:
-                alignment = peHeader.ImageNTHeaders.OptionalHeader.SectionAlignment;
-                imageSize = (uint)lastSectionHeader.VirtualAddress + lastSectionHeader.VirtualSize;
-                break;
-            default:
-                throw new NotSupportedException();
-        }
+        var lastSectionHeader = peFile.Sections[^1];
+        var alignment = peFile.OptionalHeader.FileAlignment;
+        var imageSize = (uint)lastSectionHeader.Offset + lastSectionHeader.GetPhysicalSize();
 
         if (imageSize % alignment != 0)
         {
