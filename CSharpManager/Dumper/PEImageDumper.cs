@@ -5,69 +5,72 @@ namespace CSharpManager.Dumper;
 internal static unsafe class PEImageDumper
 {
     /// <summary>
-    ///     直接从内存中复制模块，不执行格式转换操作
+    ///     Try to dump the PE image from the specified address.
     /// </summary>
     /// <param name="process"></param>
     /// <param name="address"></param>
+    /// <param name="peFileBytes"></param>
     /// <returns></returns>
-    public static byte[]? Dump(NativeProcess process, nuint address)
+    public static bool TryDump(NativeProcess process, nuint address, out byte[] peFileBytes)
     {
+        peFileBytes = [];
+
         var pageInfos = process.EnumeratePageInfos((void*)address, (void*)address).ToArray();
         if (pageInfos.Length == 0)
         {
-            return null;
+            return false;
         }
 
+        // Check if the page is valid
         var firstPageInfo = pageInfos[0];
-        // 判断内存页是否有效
         if (!firstPageInfo.IsValidPage())
         {
-            return null;
+            return false;
         }
 
-        // 如果在内存页头部，说明是内存格式
+        // If the address is the start of the page, then it's Memory Layout
         if (address == (nuint)firstPageInfo.Address)
         {
-            return null;
+            return false;
         }
 
         var peFile = new byte[(int)((byte*)firstPageInfo.Address + (int)firstPageInfo.Size - (byte*)address)];
         process.ReadBytes((void*)address, peFile);
 
-        // 获取模块在内存中的大小
+        // Get the size of the image
         var imageSize = GetImageSize(peFile);
         if (imageSize == 0)
         {
-            return null;
+            return false;
         }
 
-        var peImage = new byte[imageSize];
+        peFileBytes = new byte[imageSize];
 
-        if (!process.TryReadBytes((void*)address, peImage, 0, imageSize))
+        if (!process.TryReadBytes((void*)address, peFileBytes, 0, imageSize))
         {
-            return null;
+            return false;
         }
 
-        return peImage;
+        return true;
     }
 
     /// <summary>
-    ///     获取模块大小
+    ///     Get the size of the image
     /// </summary>
-    /// <param name="peFile"></param>
+    /// <param name="peFileBytes"></param>
     /// <returns></returns>
-    public static uint GetImageSize(byte[] peFile)
+    private static uint GetImageSize(byte[] peFileBytes)
     {
-        var peImage = PEFile.FromBytes(peFile);
+        var peImage = PEFile.FromBytes(peFileBytes);
         return GetImageSize(peImage);
     }
 
     /// <summary>
-    ///     获取模块大小
+    ///     Get the size of the image
     /// </summary>
     /// <param name="peFile"></param>
     /// <returns></returns>
-    public static uint GetImageSize(PEFile peFile)
+    private static uint GetImageSize(PEFile peFile)
     {
         var lastSectionHeader = peFile.Sections[^1];
         var alignment = peFile.OptionalHeader.FileAlignment;
