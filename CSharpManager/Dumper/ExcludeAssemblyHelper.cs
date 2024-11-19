@@ -85,13 +85,13 @@ internal static class ExcludeAssemblyHelper
         // "UnrealEngine.Runtime, Version=1.0.0.0, Culture=neutral, PublicKeyToken="
     };
 
-    public static bool IsExcludedAssembly(byte[] data)
+    internal static bool IsExcludedAssembly(byte[] data)
     {
         var module = ModuleDefinition.FromBytes(data);
         return IsExcludedAssembly(module.Assembly);
     }
 
-    public static bool IsExcludedAssembly(AssemblyDefinition? assembly)
+    internal static bool IsExcludedAssembly(AssemblyDefinition? assembly)
     {
         if (assembly is null)
         {

@@ -2,16 +2,16 @@ using AsmResolver.PE.File;
 
 namespace CSharpManager.Dumper;
 
-internal static unsafe class PEImageDumper
+internal static unsafe class PEFileDumper
 {
     /// <summary>
-    ///     Try to dump the PE image from the specified address.
+    ///     Try to dump the PE file from the specified address.
     /// </summary>
     /// <param name="process"></param>
     /// <param name="address"></param>
     /// <param name="peFileBytes"></param>
     /// <returns></returns>
-    public static bool TryDump(NativeProcess process, nuint address, out byte[] peFileBytes)
+    internal static bool TryDump(NativeProcess process, nuint address, out byte[] peFileBytes)
     {
         peFileBytes = [];
 
@@ -38,15 +38,15 @@ internal static unsafe class PEImageDumper
         process.ReadBytes((void*)address, peFile);
 
         // Get the size of the image
-        var imageSize = GetImageSize(peFile);
-        if (imageSize == 0)
+        var peFileSize = GetPEFileSize(peFile);
+        if (peFileSize == 0)
         {
             return false;
         }
 
-        peFileBytes = new byte[imageSize];
+        peFileBytes = new byte[peFileSize];
 
-        if (!process.TryReadBytes((void*)address, peFileBytes, 0, imageSize))
+        if (!process.TryReadBytes((void*)address, peFileBytes, 0, peFileSize))
         {
             return false;
         }
@@ -55,22 +55,22 @@ internal static unsafe class PEImageDumper
     }
 
     /// <summary>
-    ///     Get the size of the image
+    ///     Get the size of the PE file
     /// </summary>
     /// <param name="peFileBytes"></param>
     /// <returns></returns>
-    private static uint GetImageSize(byte[] peFileBytes)
+    private static uint GetPEFileSize(byte[] peFileBytes)
     {
         var peImage = PEFile.FromBytes(peFileBytes);
-        return GetImageSize(peImage);
+        return GetPEFileSize(peImage);
     }
 
     /// <summary>
-    ///     Get the size of the image
+    ///     Get the size of the PE file
     /// </summary>
     /// <param name="peFile"></param>
     /// <returns></returns>
-    private static uint GetImageSize(PEFile peFile)
+    private static uint GetPEFileSize(PEFile peFile)
     {
         var lastSectionHeader = peFile.Sections[^1];
         var alignment = peFile.OptionalHeader.FileAlignment;
