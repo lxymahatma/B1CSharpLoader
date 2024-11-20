@@ -52,18 +52,9 @@ public static class Log
     }
 }
 
-public readonly ref struct ChangeConsoleColor : IDisposable
+public readonly ref struct ChangeConsoleColor
 {
-    private readonly ConsoleColor _currentForeground;
+    public ChangeConsoleColor(ConsoleColor color) => Console.ForegroundColor = color;
 
-    public ChangeConsoleColor(ConsoleColor color)
-    {
-        _currentForeground = Console.ForegroundColor;
-        Console.ForegroundColor = color;
-    }
-
-    public void Dispose()
-    {
-        Console.ForegroundColor = _currentForeground;
-    }
+    public void Dispose() => Console.ResetColor();
 }

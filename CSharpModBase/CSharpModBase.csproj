@@ -3,7 +3,7 @@
     <PropertyGroup>
         <TargetFramework>net472</TargetFramework>
         <Nullable>enable</Nullable>
-        <LangVersion>latest</LangVersion>
+        <LangVersion>12</LangVersion>
         <ImplicitUsings>true</ImplicitUsings>
         <AllowUnsafeBlocks>True</AllowUnsafeBlocks>
         <AssemblyVersion>0.0.6.0</AssemblyVersion>
