@@ -21,8 +21,11 @@
 
     <ItemGroup>
         <PackageReference Include="AsmResolver.DotNet" Version="6.0.0-beta.1"/>
-        <PackageReference Include="IndexRange" Version="1.0.3"/>
         <PackageReference Include="NativeSharp-lib" Version="3.0.0.1"/>
+        <PackageReference Include="Polyfill" Version="7.7.0">
+          <PrivateAssets>all</PrivateAssets>
+          <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+        </PackageReference>
     </ItemGroup>
 
 </Project>

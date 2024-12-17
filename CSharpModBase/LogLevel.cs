@@ -1,5 +1,6 @@
 namespace CSharpModBase;
 
+[EnumExtensions]
 internal enum LogLevel
 {
     Debug,

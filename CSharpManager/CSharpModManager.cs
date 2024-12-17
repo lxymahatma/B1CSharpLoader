@@ -29,6 +29,7 @@ public class CSharpModManager
         Utils.InitInputManager(InputManager);
         // load config from ini
         Develop = _iniFile.GetValue("Develop", "Settings", "1").Trim() == "1";
+        Log.LogLevel = LogLevelExtensions.Parse(_iniFile.GetValue("LogLevel", "Settings", "Info"));
         Log.Debug($"Develop: {Develop}");
         CheckDumpAssemblies();
     }

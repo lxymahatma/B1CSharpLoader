@@ -3,7 +3,7 @@ namespace CSharpModBase;
 public static class Log
 {
     private static readonly StreamWriter LogFile = File.CreateText(Path.Combine(Common.LoaderDir, "CSharpLog.log"));
-    private static readonly LogLevel _logLevel = LogLevel.Info;
+    internal static LogLevel LogLevel { get; set; } = LogLevel.Info;
     private static string DateTimeString => DateTime.Now.ToString("MM-dd HH:mm:ss"); // .fff
 
     public static void Info(string message)
@@ -38,7 +38,7 @@ public static class Log
 
     private static void WriteLine(string message, LogLevel level, ConsoleColor color)
     {
-        if (level < _logLevel)
+        if (level < LogLevel)
         {
             return;
         }
